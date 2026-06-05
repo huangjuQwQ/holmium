@@ -8,7 +8,7 @@ from astrbot.api.star import Context, Star, register
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api import logger
 
-@register("astrbot_plugin_holmium", "Optimizer", "一个内存优化插件", "1.0.5", "https://github.com/your-repo")
+@register("astrbot_plugin_holmium", "Optimizer", "一个内存优化插件", "1.0.5", "https://github.com/huangjuQwQ/astrbot_plugin_holmium")
 class MemoryOptimizer(Star):
     def __init__(self, context: Context) -> None:
         super().__init__(context)
@@ -47,10 +47,14 @@ class MemoryOptimizer(Star):
             logger.info(f"[内存优化] GC阈值已设为 [{gen0}, {gen1}, {gen2}]")
 
         if self.config.get("enable_log_level_reduction", False):
-            log_level_str = self.config.get("log_level", "WARNING").upper()
-            log_level = getattr(logging, log_level_str, logging.WARNING)
-            logging.getLogger().setLevel(log_level)
-            logger.info(f"[内存优化] 日志级别已设为 {log_level_str}")
+            target_level_str = self.config.get("log_level", "WARNING").upper()
+            target_level = getattr(logging, target_level_str, logging.WARNING)
+            logging.getLogger().setLevel(target_level)
+            astrbot_logger = logging.getLogger("astrbot")
+            astrbot_logger.setLevel(target_level)
+            for handler in astrbot_logger.handlers:
+                handler.setLevel(target_level)
+            logger.info(f"[内存优化] 已将全局与 AstrBot 内部日志级别调整为 {target_level_str}")
 
         try:
             from astrbot.core.event import event_manager
@@ -159,16 +163,61 @@ class MemoryOptimizer(Star):
 
     @filter.command("重载优化配置")
     async def reload_config(self, event: AstrMessageEvent):
+        old_config = self.config.copy()
         self.config = self._load_config()
         self._apply_initial_settings()
-        yield event.plain_result("✅ 内存优化插件配置已重载")
+        config_count = len(self.config)
+        changed = [k for k in self.config if old_config.get(k) != self.config.get(k)]
+        if changed:
+            yield event.plain_result(f"✅ 配置已重载（共 {config_count} 项，其中 {len(changed)} 项发生变化）")
+        else:
+            yield event.plain_result(f"✅ 配置已重载（共 {config_count} 项，无变化）")
 
     @filter.command("优化其他插件")
     async def call_plugin_optimize(self, event: AstrMessageEvent):
-        await self._call_other_plugin_optimization()
-        yield event.plain_result("✅ 已请求所有支持优化的插件进行性能清理")
+        if not self.config.get("optimize_other_plugins", False):
+            yield event.plain_result("⚠️ 总开关「优化其他插件」未开启，无法执行。请在面板中开启。")
+            return
+        if not self.config.get("other_plugin_optimization_enabled", False):
+            yield event.plain_result("⚠️ 子开关「启用调用」未开启，无法执行。请在面板中开启。")
+            return
+
+        level = self.config.get("other_plugin_optimization_level", "medium")
+        called_plugins = []
+        try:
+            plugin_manager = self.context.get_plugin_manager()
+            if plugin_manager is None:
+                yield event.plain_result("❌ 无法获取插件管理器，请检查 AstrBot 版本。")
+                return
+
+            all_plugins = plugin_manager.get_all_plugins()
+            count = 0
+            for plugin in all_plugins:
+                if plugin == self:
+                    continue
+                if hasattr(plugin, "optimize_performance") and callable(plugin.optimize_performance):
+                    try:
+                        if asyncio.iscoroutinefunction(plugin.optimize_performance):
+                            await plugin.optimize_performance(level=level, caller="astrbot_plugin_holmium")
+                        else:
+                            plugin.optimize_performance(level=level, caller="astrbot_plugin_holmium")
+                        count += 1
+                        called_plugins.append(plugin.__class__.__name__)
+                    except Exception as e:
+                        logger.error(f"[内存优化] 调用 {plugin.__class__.__name__} 优化方法时出错: {e}")
+            if count == 0:
+                yield event.plain_result(f"ℹ️ 未找到任何实现了 optimize_performance 方法的插件（级别：{level}）")
+            else:
+                if len(called_plugins) <= 5:
+                    names = "、".join(called_plugins)
+                    yield event.plain_result(f"✅ 已调用 {count} 个插件的优化方法（级别：{level}）：{names}")
+                else:
+                    yield event.plain_result(f"✅ 已调用 {count} 个插件的优化方法（级别：{level}），包括 {called_plugins[0]} 等")
+        except Exception as e:
+            logger.error(f"[内存优化] 扫描插件失败: {e}")
+            yield event.plain_result(f"❌ 执行过程中发生错误：{str(e)}")
 
     @filter.command("手动垃圾回收")
     async def manual_gc(self, event: AstrMessageEvent):
         collected = gc.collect()
-        yield event.plain_result(f"🧹 手动垃圾回收完成，回收了 {collected} 个对象")
+        yield event.plain_result(f"🧹 手动垃圾回收完成，共回收 {collected} 个无法访问的对象。")
