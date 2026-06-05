@@ -40,23 +40,23 @@
       }
     }
   },
-  "log_optimization": {
+  "cpu_optimization": {
     "type": "object",
-    "description": "降低日志输出频率，减少 I/O 开销",
+    "description": "降低 CPU 开销，限制异步任务并发线程数",
     "obvious_hint": true,
     "items": {
-      "enable_log_level_reduction": {
+      "enable_cpu_optimization": {
         "type": "bool",
-        "description": "降低日志级别",
-        "hint": "开启后降低日志输出等级，减少 I/O 开销",
+        "description": "启用 CPU 优化",
+        "hint": "开启后限制默认线程池大小，减少上下文切换",
         "default": false
       },
-      "log_level": {
-        "type": "string",
-        "description": "日志级别",
-        "hint": "DEBUG：最详细；INFO：一般信息；WARNING：警告及以上（默认）；ERROR：仅错误；CRITICAL：仅致命错误；NOTSET：不限制",
-        "options": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "NOTSET"],
-        "default": "WARNING"
+      "max_worker_threads": {
+        "type": "int",
+        "description": "最大工作线程数",
+        "hint": "限制 asyncio 默认线程池的最大线程数，推荐值为 CPU 核心数",
+        "slider": { "min": 1, "max": 16, "step": 1 },
+        "default": 4
       }
     }
   },

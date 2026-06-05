@@ -2,18 +2,19 @@ import json
 import gc
 import asyncio
 import os
-import logging
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
 from astrbot.api.star import Context, Star, register
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api import logger
 
-@register("astrbot_plugin_holmium", "Optimizer", "一个内存优化插件", "1.0.5", "https://github.com/huangjuQwQ/astrbot_plugin_holmium")
+@register("astrbot_plugin_holmium", "Optimizer", "一个内存与CPU优化插件", "1.0.9", "https://github.com/huangjuQwQ/astrbot_plugin_holmium")
 class MemoryOptimizer(Star):
     def __init__(self, context: Context) -> None:
         super().__init__(context)
         self.config = self._load_config()
         self._optimize_task = None
+        self._original_executor = None
         self._apply_initial_settings()
 
     def _load_config(self):
@@ -27,10 +28,10 @@ class MemoryOptimizer(Star):
             "gc_threshold_gen1": 10,
             "gc_threshold_gen2": 10,
             "gc_interval_seconds": 300,
-            "enable_log_level_reduction": False,
-            "log_level": "WARNING",
             "clear_unused_sessions_days": 0,
             "max_event_queue_size": 1000,
+            "enable_cpu_optimization": False,
+            "max_worker_threads": 4,
             "optimize_other_plugins": False,
             "other_plugin_optimization_enabled": False,
             "other_plugin_optimization_level": "medium",
@@ -39,30 +40,45 @@ class MemoryOptimizer(Star):
         }
 
     def _apply_initial_settings(self):
+        # GC 优化
         if self.config.get("enable_gc_optimization", False):
             gen0 = self.config.get("gc_threshold_gen0", 700)
             gen1 = self.config.get("gc_threshold_gen1", 10)
             gen2 = self.config.get("gc_threshold_gen2", 10)
             gc.set_threshold(gen0, gen1, gen2)
-            logger.info(f"[内存优化] GC阈值已设为 [{gen0}, {gen1}, {gen2}]")
+            logger.info(f"[优化] GC阈值已设为 [{gen0}, {gen1}, {gen2}]")
 
-        if self.config.get("enable_log_level_reduction", False):
-            target_level_str = self.config.get("log_level", "WARNING").upper()
-            target_level = getattr(logging, target_level_str, logging.WARNING)
-            logging.getLogger().setLevel(target_level)
-            astrbot_logger = logging.getLogger("astrbot")
-            astrbot_logger.setLevel(target_level)
-            for handler in astrbot_logger.handlers:
-                handler.setLevel(target_level)
-            logger.info(f"[内存优化] 已将全局与 AstrBot 内部日志级别调整为 {target_level_str}")
+        # CPU 优化：限制默认线程池大小
+        if self.config.get("enable_cpu_optimization", False):
+            max_workers = self.config.get("max_worker_threads", 4)
+            self._set_thread_pool_limit(max_workers)
 
+        # 事件队列限制
         try:
             from astrbot.core.event import event_manager
             if hasattr(event_manager, 'set_max_queue_size'):
                 event_manager.set_max_queue_size(self.config.get("max_event_queue_size", 1000))
-                logger.info(f"[内存优化] 事件队列大小限制设为 {self.config.get('max_event_queue_size')}")
+                logger.info(f"[优化] 事件队列大小限制设为 {self.config.get('max_event_queue_size')}")
         except Exception as e:
-            logger.debug(f"[内存优化] 无法设置事件队列大小: {e}")
+            logger.debug(f"[优化] 无法设置事件队列大小: {e}")
+
+    def _set_thread_pool_limit(self, max_workers: int):
+        """替换 asyncio 默认线程池，限制最大线程数"""
+        try:
+            loop = asyncio.get_running_loop()
+            # 保存原始执行器以便恢复（如果需要）
+            if self._original_executor is None:
+                self._original_executor = loop._default_executor
+            # 创建新的线程池
+            new_executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="OptPool")
+            loop.set_default_executor(new_executor)
+            logger.info(f"[优化] 已将 asyncio 默认线程池大小限制为 {max_workers} 个线程")
+        except RuntimeError:
+            # 没有运行中的事件循环，暂存配置，等 _on_start 时再设置
+            self._pending_cpu_optim = max_workers
+            logger.info(f"[优化] 当前无事件循环，将在启动时应用 CPU 优化 (线程池大小={max_workers})")
+        except Exception as e:
+            logger.error(f"[优化] 设置线程池大小失败: {e}")
 
     async def _call_other_plugin_optimization(self):
         if not self.config.get("optimize_other_plugins", False):
@@ -71,12 +87,12 @@ class MemoryOptimizer(Star):
             return
 
         level = self.config.get("other_plugin_optimization_level", "medium")
-        logger.info(f"[内存优化] 开始调用其他插件的性能优化方法 (级别: {level})")
+        logger.info(f"[优化] 开始调用其他插件的性能优化方法 (级别: {level})")
 
         try:
             plugin_manager = self.context.get_plugin_manager()
             if plugin_manager is None:
-                logger.warning("[内存优化] 无法获取插件管理器，跳过优化调用")
+                logger.warning("[优化] 无法获取插件管理器，跳过优化调用")
                 return
 
             all_plugins = plugin_manager.get_all_plugins()
@@ -91,12 +107,12 @@ class MemoryOptimizer(Star):
                         else:
                             plugin.optimize_performance(level=level, caller="astrbot_plugin_holmium")
                         count += 1
-                        logger.debug(f"[内存优化] 已调用 {plugin.__class__.__name__}.optimize_performance()")
+                        logger.debug(f"[优化] 已调用 {plugin.__class__.__name__}.optimize_performance()")
                     except Exception as e:
-                        logger.error(f"[内存优化] 调用 {plugin.__class__.__name__} 优化方法时出错: {e}")
-            logger.info(f"[内存优化] 共调用 {count} 个插件的优化方法")
+                        logger.error(f"[优化] 调用 {plugin.__class__.__name__} 优化方法时出错: {e}")
+            logger.info(f"[优化] 共调用 {count} 个插件的优化方法")
         except Exception as e:
-            logger.error(f"[内存优化] 扫描插件失败: {e}")
+            logger.error(f"[优化] 扫描插件失败: {e}")
 
     async def _periodic_optimize(self):
         while True:
@@ -108,12 +124,12 @@ class MemoryOptimizer(Star):
                 if new_config != self.config:
                     self.config = new_config
                     self._apply_initial_settings()
-                    logger.info("[内存优化] 配置已热更新")
+                    logger.info("[优化] 配置已热更新")
 
                 if self.config.get("enable_gc_optimization", False):
                     collected = gc.collect()
                     if collected > 0:
-                        logger.debug(f"[内存优化] 主动 GC 回收了 {collected} 个对象")
+                        logger.debug(f"[优化] 主动 GC 回收了 {collected} 个对象")
 
                 days = self.config.get("clear_unused_sessions_days", 0)
                 if days > 0:
@@ -123,7 +139,7 @@ class MemoryOptimizer(Star):
                             before = datetime.now() - timedelta(days=days)
                             cleared = session_mgr.clear_inactive_sessions(before)
                             if cleared:
-                                logger.info(f"[内存优化] 清除了 {cleared} 个不活跃会话")
+                                logger.info(f"[优化] 清除了 {cleared} 个不活跃会话")
                     except Exception:
                         pass
 
@@ -139,11 +155,16 @@ class MemoryOptimizer(Star):
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"[内存优化] 后台任务异常: {e}")
+                logger.error(f"[优化] 后台任务异常: {e}")
 
     async def _on_start(self):
+        # 处理之前未应用的 CPU 优化
+        if hasattr(self, '_pending_cpu_optim'):
+            self._set_thread_pool_limit(self._pending_cpu_optim)
+            delattr(self, '_pending_cpu_optim')
+
         self._optimize_task = asyncio.create_task(self._periodic_optimize())
-        logger.info("[内存优化] 后台优化任务已启动")
+        logger.info("[优化] 后台优化任务已启动")
 
         if self.config.get("optimize_other_plugins", False) and self.config.get("other_plugin_optimization_call_on_startup", False):
             await self._call_other_plugin_optimization()
@@ -156,7 +177,15 @@ class MemoryOptimizer(Star):
                 await self._optimize_task
             except asyncio.CancelledError:
                 pass
-            logger.info("[内存优化] 后台优化任务已停止")
+            logger.info("[优化] 后台优化任务已停止")
+        # 恢复原始线程池（可选）
+        if self._original_executor is not None:
+            try:
+                loop = asyncio.get_running_loop()
+                loop.set_default_executor(self._original_executor)
+                logger.info("[优化] 已恢复原始线程池")
+            except Exception:
+                pass
 
     async def terminate(self):
         await self._on_stop()
@@ -204,7 +233,7 @@ class MemoryOptimizer(Star):
                         count += 1
                         called_plugins.append(plugin.__class__.__name__)
                     except Exception as e:
-                        logger.error(f"[内存优化] 调用 {plugin.__class__.__name__} 优化方法时出错: {e}")
+                        logger.error(f"[优化] 调用 {plugin.__class__.__name__} 优化方法时出错: {e}")
             if count == 0:
                 yield event.plain_result(f"ℹ️ 未找到任何实现了 optimize_performance 方法的插件（级别：{level}）")
             else:
@@ -214,7 +243,7 @@ class MemoryOptimizer(Star):
                 else:
                     yield event.plain_result(f"✅ 已调用 {count} 个插件的优化方法（级别：{level}），包括 {called_plugins[0]} 等")
         except Exception as e:
-            logger.error(f"[内存优化] 扫描插件失败: {e}")
+            logger.error(f"[优化] 扫描插件失败: {e}")
             yield event.plain_result(f"❌ 执行过程中发生错误：{str(e)}")
 
     @filter.command("手动垃圾回收")

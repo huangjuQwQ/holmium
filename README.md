@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](https://opensource.org/licenses/MIT)
 [![Author](https://img.shields.io/badge/author-huangjuQwQ-blue)](https://github.com/huangjuQwQ)
 
-一个专注于降低 AstrBot 内存消耗的性能优化插件。**所有功能默认关闭**，你可按需在 Web 面板中开启，安全无副作用。
+一个专注于降低 AstrBot 内存与 CPU 消耗的性能优化插件。**所有功能默认关闭**，你可按需在 Web 面板中开启，安全无副作用。
 
 ---
 
@@ -14,7 +14,7 @@
 | 类别 | 功能 | 说明 |
 |------|------|------|
 | 🔧 GC 优化 | 分代阈值调整 + 定时回收 | 减少 Python 垃圾回收的全堆扫描频率，降低 CPU 与内存抖动 |
-| 📝 日志优化 | 降低全局日志级别 | 减少控制台/文件 I/O 开销，适合生产环境 |
+| ⚙️ CPU 优化 | 限制 asyncio 默认线程池大小 | 减少过多线程导致的上下文切换开销，提升整体效率 |
 | 🧹 会话与队列 | 清理不活跃会话 + 限制事件队列长度 | 防止会话积压和队列无限增长导致 OOM |
 | 🔌 其他插件优化 | 调用第三方插件的性能接口 | 通过约定方法让其他插件自主清理缓存、释放资源 |
 | 🎮 手动命令 | `/重载优化配置`、`/优化其他插件`、`/手动垃圾回收` | 无需重启即可重载配置、手动触发优化或垃圾回收 |
@@ -28,7 +28,7 @@
 data/plugins/astrbot_plugin_holmium/
 ├── 📄 metadata.yaml          # 插件元信息（名称、版本、作者等）
 ├── 📄 init.py            # 插件入口，导出主类
-├── 📄 main.py                # 核心逻辑（GC、日志、调度、命令）
+├── 📄 main.py                # 核心逻辑（GC、线程池限制、调度、命令）
 ├── 📄 config.json            # 默认配置（所有功能默认关闭）
 └── 📄 _conf_schema.json      # Web 面板配置 UI 定义（分组、滑块、下拉选项）
 
@@ -41,7 +41,7 @@ data/plugins/astrbot_plugin_holmium/
 1. **将整个 `astrbot_plugin_holmium` 文件夹放入** `AstrBot/data/plugins/` 目录。
 2. **重启 AstrBot**（或执行“重新加载插件”）。
 3. 打开 Web 管理面板 → 插件配置 → `astrbot_plugin_holmium`，按需开启各项优化。
-4. 在聊天中发送 `/optimizer_gc` 验证插件是否正常工作。
+4. 在聊天中发送 `/手动垃圾回收` 验证插件是否正常工作。
 
 > ⚠️ 所有优化默认关闭，请确认理解每项作用后再开启。
 
@@ -121,8 +121,8 @@ GC 优化 启用 GC 优化 bool false 开启后调整阈值并定时回收
  第1代阈值（幸存代） int 10 超过此数量触发幸存代回收
  第2代阈值（老年代） int 10 超过此数量触发老年代回收
  主动 GC 间隔（秒） int 300 定时调用 gc.collect() 的间隔
-日志优化 降低日志级别 bool false 开启后减少 I/O 输出
- 日志级别 string WARNING DEBUG/INFO/WARNING/ERROR/CRITICAL/NOTSET
+CPU 优化 启用 CPU 优化 bool false 开启后限制 asyncio 默认线程池大小
+ 最大工作线程数 int 4 线程池大小上限，推荐设为 CPU 核心数
 会话与队列 清理不活跃会话（天） int 0 超过天数未活动则清理，0=禁用
  事件队列最大长度 int 1000 防止队列积压
 其他插件优化 总开关 bool false 关闭后完全不调用其他插件
@@ -137,10 +137,11 @@ GC 优化 启用 GC 优化 bool false 开启后调整阈值并定时回收
 
 v1.0.5 (2026-06-06)
 
-· 新增 Web 面板分组折叠支持（GC 优化、日志优化、会话与队列、其他插件优化）
+· 新增 Web 面板分组折叠支持（GC 优化、CPU 优化、会话与队列、其他插件优化）
 · 新增 对其他插件的性能优化接口（optimize_performance 方法）
 · 新增 手动命令 /重载优化配置、/优化其他插件、/手动垃圾回收
-· 优化 日志级别和优化级别的枚举选项说明
+· 新增 CPU 优化：限制 asyncio 默认线程池大小，减少上下文切换
+· 优化 优化级别的枚举选项说明
 · 修复 兼容 AstrBot v4.25.2 的配置加载机制（使用 items 而非 properties）
 · 安全 所有功能默认关闭，避免误开启导致问题
 
@@ -153,3 +154,5 @@ v1.0.5 (2026-06-06)
 ---
 
 Enjoy a lighter AstrBot! 🚀
+
+```
