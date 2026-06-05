@@ -1,5 +1,5 @@
 ![](https://i.imgs.ovh/2026/06/06/5705ea7d63f5f8dc56dffc068852fd4c.png)
-# 💾 AstrBot Memory Optimizer-Holmium
+#           💾 AstrBot Memory Optimizer-Holmium
 
 [![Version](https://img.shields.io/badge/version-1.0.5-blue.svg)](https://github.com/huangjuQwQ/astrbot_plugin_holmium/releases/tag/v1.0.5)
 [![AstrBot](https://img.shields.io/badge/AstrBot-%3E%3D4.0-green.svg)](https://github.com/Soulter/AstrBot)
