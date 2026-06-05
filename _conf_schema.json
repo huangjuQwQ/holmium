@@ -1,0 +1,123 @@
+{
+  "gc_optimization": {
+    "type": "object",
+    "description": "调整 Python 垃圾回收（GC）行为，降低内存碎片",
+    "obvious_hint": true,
+    "items": {
+      "enable_gc_optimization": {
+        "type": "bool",
+        "description": "启用 GC 优化",
+        "hint": "开启后调整垃圾回收阈值并定期回收",
+        "default": false
+      },
+      "gc_threshold_gen0": {
+        "type": "int",
+        "description": "第0代阈值（新生代）",
+        "hint": "新生代对象数量阈值，超过则触发该代回收",
+        "slider": { "min": 100, "max": 2000, "step": 100 },
+        "default": 700
+      },
+      "gc_threshold_gen1": {
+        "type": "int",
+        "description": "第1代阈值（幸存代）",
+        "hint": "幸存代对象数量阈值，超过则触发该代回收",
+        "slider": { "min": 5, "max": 100, "step": 5 },
+        "default": 10
+      },
+      "gc_threshold_gen2": {
+        "type": "int",
+        "description": "第2代阈值（老年代）",
+        "hint": "老年代对象数量阈值，超过则触发该代回收",
+        "slider": { "min": 5, "max": 100, "step": 5 },
+        "default": 10
+      },
+      "gc_interval_seconds": {
+        "type": "int",
+        "description": "主动 GC 间隔（秒）",
+        "hint": "主动执行 GC 内存回收的时间间隔（一分钟 = 60 秒）",
+        "slider": { "min": 60, "max": 3600, "step": 30 },
+        "default": 300
+      }
+    }
+  },
+  "log_optimization": {
+    "type": "object",
+    "description": "降低日志输出频率，减少 I/O 开销",
+    "obvious_hint": true,
+    "items": {
+      "enable_log_level_reduction": {
+        "type": "bool",
+        "description": "降低日志级别",
+        "hint": "开启后降低日志输出等级，减少 I/O 开销",
+        "default": false
+      },
+      "log_level": {
+        "type": "string",
+        "description": "日志级别",
+        "hint": "DEBUG：最详细；INFO：一般信息；WARNING：警告及以上（默认）；ERROR：仅错误；CRITICAL：仅致命错误；NOTSET：不限制",
+        "options": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "NOTSET"],
+        "default": "WARNING"
+      }
+    }
+  },
+  "session_queue": {
+    "type": "object",
+    "description": "清理不活跃会话，限制事件队列长度",
+    "obvious_hint": true,
+    "items": {
+      "clear_unused_sessions_days": {
+        "type": "int",
+        "description": "清理不活跃会话（天）",
+        "hint": "删除超过指定天数未活动的会话，0 表示禁用",
+        "slider": { "min": 0, "max": 30, "step": 1 },
+        "default": 0
+      },
+      "max_event_queue_size": {
+        "type": "int",
+        "description": "事件队列最大长度",
+        "hint": "限制内部事件队列上限，防止内存积压",
+        "slider": { "min": 100, "max": 5000, "step": 100 },
+        "default": 1000
+      }
+    }
+  },
+  "other_plugins": {
+    "type": "object",
+    "description": "调用其它插件的性能优化接口（需插件主动实现）",
+    "obvious_hint": true,
+    "items": {
+      "optimize_other_plugins": {
+        "type": "bool",
+        "description": "总开关",
+        "hint": "关闭后不调用任何插件的优化方法",
+        "default": false
+      },
+      "other_plugin_optimization_enabled": {
+        "type": "bool",
+        "description": "启用调用",
+        "hint": "仅当总开关开启且此项为 true 时生效",
+        "default": false
+      },
+      "other_plugin_optimization_level": {
+        "type": "string",
+        "description": "优化级别",
+        "hint": "light：轻量缓存清理；medium：中等清理（推荐）；full：彻底清理；extreme：激进清理（谨慎）；conservative：保守重置临时状态",
+        "options": ["light", "medium", "full", "extreme", "conservative"],
+        "default": "medium"
+      },
+      "other_plugin_optimization_interval_hours": {
+        "type": "int",
+        "description": "自动调用间隔（小时）",
+        "hint": "定时调用其他插件优化方法的间隔，0 表示不自动调用",
+        "slider": { "min": 0, "max": 72, "step": 1 },
+        "default": 0
+      },
+      "other_plugin_optimization_call_on_startup": {
+        "type": "bool",
+        "description": "启动时立即调用",
+        "hint": "插件加载完成后立即执行一次优化调用",
+        "default": false
+      }
+    }
+  }
+}

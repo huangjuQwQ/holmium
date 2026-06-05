@@ -1,0 +1,16 @@
+{
+  "enable_gc_optimization": false,
+  "gc_threshold_gen0": 700,
+  "gc_threshold_gen1": 10,
+  "gc_threshold_gen2": 10,
+  "gc_interval_seconds": 300,
+  "enable_log_level_reduction": false,
+  "log_level": "WARNING",
+  "clear_unused_sessions_days": 0,
+  "max_event_queue_size": 1000,
+  "optimize_other_plugins": false,
+  "other_plugin_optimization_enabled": false,
+  "other_plugin_optimization_level": "medium",
+  "other_plugin_optimization_interval_hours": 0,
+  "other_plugin_optimization_call_on_startup": false
+}
