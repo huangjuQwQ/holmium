@@ -2,7 +2,7 @@
 
 [![Version](https://img.shields.io/badge/version-1.0.5-blue.svg)](https://github.com/huangjuQwQ/astrbot_plugin_holmium/releases/tag/v1.0.5)
 [![AstrBot](https://img.shields.io/badge/AstrBot-%3E%3D4.0-green.svg)](https://github.com/Soulter/AstrBot)
-[![License](https://img.shields.io/badge/license-MIT-orange.svg)](https://opensource.org/licenses/MIT
+[![License](https://img.shields.io/badge/license-MIT-orange.svg)](https://opensource.org/licenses/MIT)
 [![Author](https://img.shields.io/badge/author-huangjuQwQ-blue)](https://github.com/huangjuQwQ)
 
 一个专注于降低 AstrBot 内存消耗的性能优化插件。**所有功能默认关闭**，你可按需在 Web 面板中开启，安全无副作用。
