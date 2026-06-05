@@ -154,5 +154,5 @@ v1.0.5 (2026-06-06)
 ---
 
 Enjoy a lighter AstrBot! 🚀
-
+![](https://i.imgs.ovh/2026/06/06/5705ea7d63f5f8dc56dffc068852fd4c.png)
 ```
