@@ -1,5 +1,5 @@
 ![](https://i.imgs.ovh/2026/06/06/e0cfbb39e817d30f7bd93dfeb4dd1625.png)
-#           💾 AstrBot Memory Optimizer-Holmium
+# 💾 AstrBot Memory Optimizer-Holmium
 
 [![Version](https://img.shields.io/badge/version-1.0.5-blue.svg)](https://github.com/huangjuQwQ/astrbot_plugin_holmium/releases/tag/v1.0.5)
 [![AstrBot](https://img.shields.io/badge/AstrBot-%3E%3D4.0-green.svg)](https://github.com/Soulter/AstrBot)
@@ -50,7 +50,7 @@ data/plugins/astrbot_plugin_holmium/
 
 ## 🔌 如何让其他插件支持优化？
 
-本插件提供了一个**可选的优化调用链**。如果你希望某个插件能够响应内存优化请求，只需在该插件的 `Star` 子类中实现以下方法：
+本插件提供了一个**可选的优化调用链**。如果你希望某个插件能够响应内存优化请求，定位它核心 `main.py`只需在该插件的 `Star` 子类中实现以下方法：
 
 ```python
 def optimize_performance(self, level: str = "medium", caller: str = ""):

@@ -1,9 +1,12 @@
 name: astrbot_plugin_holmium
-desc: 降低 AstrBot 内存消耗（GC、日志、会话清理），并可调用其他插件的性能优化接口
+display_name: 钬
+desc: 降低 AstrBot 内存与 CPU 消耗的性能优化插件
 version: 1.0.5
-author: Optimizer
+author: huangjuQwQ
 
-astrbot_version: ">=4.0"
-repo_url: ""
-logo: ""
+astrbot_version: ">=4.16"
+repo_url: https://github.com/huangjuQwQ/astrbot_plugin_holmium
+logo: logo.png
 support_platforms: []
+
+short_desc: 轻量级内存与CPU优化，让机器人更流畅
